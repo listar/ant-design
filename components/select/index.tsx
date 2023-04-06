@@ -6,23 +6,23 @@ import type { OptionProps } from 'rc-select/lib/Option';
 import type { BaseOptionType, DefaultOptionType } from 'rc-select/lib/Select';
 import omit from 'rc-util/lib/omit';
 import * as React from 'react';
-import { ConfigContext } from '../config-provider';
-import DefaultRenderEmpty from '../config-provider/defaultRenderEmpty';
-import DisabledContext from '../config-provider/DisabledContext';
-import type { SizeType } from '../config-provider/SizeContext';
-import SizeContext from '../config-provider/SizeContext';
-import { FormItemInputContext } from '../form/context';
+import genPurePanel from '../_util/PurePanel';
 import type { SelectCommonPlacement } from '../_util/motion';
 import { getTransitionDirection, getTransitionName } from '../_util/motion';
 import type { InputStatus } from '../_util/statusUtils';
 import { getMergedStatus, getStatusClassNames } from '../_util/statusUtils';
-import getIcons from './utils/iconUtil';
-
-import { useCompactItemContext } from '../space/Compact';
-import genPurePanel from '../_util/PurePanel';
 import warning from '../_util/warning';
+import { ConfigContext } from '../config-provider';
+import DisabledContext from '../config-provider/DisabledContext';
+import type { SizeType } from '../config-provider/SizeContext';
+import SizeContext from '../config-provider/SizeContext';
+import DefaultRenderEmpty from '../config-provider/defaultRenderEmpty';
+import { FormItemInputContext } from '../form/context';
+import { useCompactItemContext } from '../space/Compact';
 import useStyle from './style';
+import useBuiltinPlacements from './useBuiltinPlacements';
 import useShowArrow from './useShowArrow';
+import getIcons from './utils/iconUtil';
 
 type RawValue = string | number;
 
@@ -82,6 +82,7 @@ const InternalSelect = <OptionType extends BaseOptionType | DefaultOptionType = 
     notFoundContent,
     status: customStatus,
     showArrow,
+    builtinPlacements,
     ...props
   }: SelectProps<OptionType>,
   ref: React.Ref<BaseSelectRef>,
@@ -182,12 +183,14 @@ const InternalSelect = <OptionType extends BaseOptionType | DefaultOptionType = 
   );
 
   // ===================== Placement =====================
-  const getPlacement = (): SelectCommonPlacement => {
+  const memoPlacement = React.useMemo<SelectCommonPlacement>(() => {
     if (placement !== undefined) {
       return placement;
     }
     return direction === 'rtl' ? 'bottomRight' : 'bottomLeft';
-  };
+  }, [placement, direction]);
+
+  const mergedBuiltinPlacements = useBuiltinPlacements(builtinPlacements);
 
   // ====================== Warning ======================
   if (process.env.NODE_ENV !== 'production') {
@@ -201,11 +204,12 @@ const InternalSelect = <OptionType extends BaseOptionType | DefaultOptionType = 
   // ====================== Render =======================
   return wrapSSR(
     <RcSelect<any, any>
-      ref={ref as any}
+      ref={ref}
       virtual={virtual}
       dropdownMatchSelectWidth={dropdownMatchSelectWidth}
       showSearch={select?.showSearch}
       {...selectProps}
+      builtinPlacements={mergedBuiltinPlacements}
       transitionName={getTransitionName(
         rootPrefixCls,
         getTransitionDirection(placement),
@@ -213,9 +217,9 @@ const InternalSelect = <OptionType extends BaseOptionType | DefaultOptionType = 
       )}
       listHeight={listHeight}
       listItemHeight={listItemHeight}
-      mode={mode as any}
+      mode={mode}
       prefixCls={prefixCls}
-      placement={getPlacement()}
+      placement={memoPlacement}
       direction={direction}
       inputIcon={suffixIcon}
       menuItemSelectedIcon={itemIcon}

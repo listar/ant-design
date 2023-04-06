@@ -1418,6 +1418,20 @@ describe('Form', () => {
     expect(container.querySelector('.drawer-select')?.className).not.toContain('status-error');
   });
 
+  it('should be set up correctly marginBottom', () => {
+    render(
+      <Modal open>
+        <Form>
+          <Form.Item help='This is a help message'>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>,
+    );
+
+    expect(document.querySelector('.ant-form-item-margin-offset')).toBeTruthy();
+  });
+
   it('Form.Item.useStatus should work', async () => {
     const {
       Item: { useStatus },
@@ -1477,6 +1491,53 @@ describe('Form', () => {
     );
   });
 
+  it('Form.Item.useStatus should supports get error messages and warning messages', async () => {
+    const {
+      Item: { useStatus },
+    } = Form;
+
+    const ErrorItem: React.FC = () => {
+      const { errors } = useStatus();
+      return <div className="test-error">{errors[0]}</div>;
+    };
+
+    const WarningItem: React.FC = () => {
+      const { warnings } = useStatus();
+      return <div className="test-warning">{warnings[0]}</div>;
+    };
+
+    const Demo: React.FC = () => {
+      const [form] = Form.useForm();
+
+      return (
+        <Form form={form} name='test-form'>
+          <Form.Item name="error" rules={[{ required: true, message: 'This is a error message.' }]}>
+            <ErrorItem />
+          </Form.Item>
+          <Form.Item
+            name="warning"
+            rules={[{ required: true, message: 'This is a warning message.', warningOnly: true }]}
+          >
+            <WarningItem />
+          </Form.Item>
+          <Button onClick={() => form.submit()} className="submit-button">
+            Submit
+          </Button>
+        </Form>
+      );
+    };
+
+    const { container } = render(<Demo />);
+
+    fireEvent.click(container.querySelector('.submit-button')!);
+    await waitFakeTimer();
+
+    expect(container.querySelector('.test-error')).toHaveTextContent('This is a error message.');
+    expect(container.querySelector('.test-warning')).toHaveTextContent(
+      'This is a warning message.',
+    );
+  });
+
   it('item customize margin', async () => {
     const computeSpy = jest
       .spyOn(window, 'getComputedStyle')
@@ -1498,6 +1559,7 @@ describe('Form', () => {
       marginBottom: -24,
     });
   });
+
   it('form child components should be given priority to own disabled props when it in a disabled form', () => {
     const props = {
       name: 'file',
@@ -1626,6 +1688,68 @@ describe('Form', () => {
     expect(container.querySelectorAll('.ant-form-item-has-feedback').length).toBe(1);
     expect(container.querySelectorAll('.ant-form-item-has-success').length).toBe(1);
   });
+
+  it('feedback should automatically derive the correct state', async () => {
+    const Demo: React.FC = () => {
+      const [form] = Form.useForm();
+
+      return (
+        <Form form={form}>
+          <Form.Item name="success" initialValue="test" hasFeedback rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="validating"
+            hasFeedback
+            rules={[
+              {
+                validator: () =>
+                  new Promise((resolve) => {
+                    setTimeout(() => resolve(true), 2000);
+                  }),
+              },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="warning" hasFeedback rules={[{ required: true, warningOnly: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="error" hasFeedback rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Button onClick={() => form.submit()} className="submit-button">
+            Submit
+          </Button>
+        </Form>
+      );
+    };
+    const { container } = render(<Demo />);
+
+    fireEvent.click(container.querySelector('.submit-button')!);
+
+    await waitFakeTimer(50);
+
+    expect(container.querySelector('.ant-form-item-has-success')).toBeTruthy();
+    expect(container.querySelector('.ant-form-item-is-validating')).toBeTruthy();
+    expect(container.querySelector('.ant-form-item-has-warning')).toBeTruthy();
+    expect(container.querySelector('.ant-form-item-has-error')).toBeTruthy();
+  });
+
+  // https://github.com/ant-design/ant-design/issues/41621
+  it('should not override value when pass `undefined` to require', async () => {
+    // When require is `undefined`, the `isRequire` calculation logic should be preserved
+    const { container } = render(
+      <Form>
+        <Form.Item label="test" name="success" required={undefined} rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+      </Form>,
+    );
+
+    expect(container.querySelector('.ant-form-item-required')).toBeTruthy();
+  });
+
   it('validate status should be change in order', async () => {
     const onChange = jest.fn();
 
